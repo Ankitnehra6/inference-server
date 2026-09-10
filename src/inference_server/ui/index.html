@@ -1,0 +1,118 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Inference Server</title>
+  <link rel="stylesheet" href="style.css">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>⚡</text></svg>">
+</head>
+<body>
+
+<header class="topbar">
+  <div class="brand">
+    <span class="brand-mark" aria-hidden="true"></span>
+    <div>
+      <h1>Inference Server</h1>
+      <p class="brand-sub">Continuous batching — watch the batch change every step</p>
+    </div>
+  </div>
+  <div class="topbar-meta">
+    <span class="stat-chip">tok/s <strong id="stat-throughput">—</strong></span>
+    <span class="stat-chip">running <strong id="stat-running">—</strong></span>
+    <span class="stat-chip">queued <strong id="stat-queued">—</strong></span>
+    <span class="stat-chip">KV <strong id="stat-cache">—</strong></span>
+  </div>
+</header>
+
+<main>
+
+  <section class="card">
+    <div class="card-head">
+      <h2>Batch composition, step by step</h2>
+      <div class="legend">
+        <span class="legend-item"><i class="swatch prefill"></i>prefill</span>
+        <span class="legend-item"><i class="swatch decode"></i>decode</span>
+        <span class="legend-item"><i class="swatch waiting"></i>queued</span>
+      </div>
+    </div>
+    <svg id="timeline" viewBox="0 0 1000 220" role="img"
+         aria-label="Requests being prefilled and decoded on each scheduler step"></svg>
+    <p class="hint" id="timeline-hint">
+      Each column is one forward pass. The batch is rebuilt from scratch every step — that is
+      what "continuous" means.
+    </p>
+  </section>
+
+  <div class="split">
+
+    <section class="card">
+      <div class="card-head"><h2>Send traffic</h2></div>
+      <form id="load-form" class="form">
+        <div class="row">
+          <div class="field">
+            <label for="count">Requests</label>
+            <input type="number" id="count" value="60" min="1" max="500">
+          </div>
+          <div class="field">
+            <label for="rate">Arrival rate <span class="unit">req/s</span></label>
+            <input type="number" id="rate" value="10" min="1" max="200" step="1">
+          </div>
+        </div>
+        <div class="row">
+          <div class="field">
+            <label for="prompt">Prompt median <span class="unit">tokens</span></label>
+            <input type="number" id="prompt" value="256" min="4" max="4096">
+          </div>
+          <div class="field">
+            <label for="output">Reply median <span class="unit">tokens</span></label>
+            <input type="number" id="output" value="96" min="1" max="1024">
+          </div>
+        </div>
+        <button class="btn btn-primary" type="submit">Send</button>
+      </form>
+      <p class="note">
+        Poisson arrivals, lognormal lengths. The <strong>variance</strong> in reply length is what
+        makes continuous batching worth having: a static batch runs for as long as its longest
+        member, so one thousand-token reply keeps every slot occupied producing nothing.
+      </p>
+      <div class="banner" id="banner" hidden></div>
+    </section>
+
+    <section class="card">
+      <div class="card-head"><h2>Latency</h2></div>
+      <div class="measures">
+        <div><span class="k">TTFT p50</span><span class="v" id="stat-ttft50">—</span></div>
+        <div><span class="k">TTFT p99</span><span class="v" id="stat-ttft99">—</span></div>
+        <div><span class="k">ITL p50</span><span class="v" id="stat-itl50">—</span></div>
+        <div><span class="k">ITL p99</span><span class="v" id="stat-itl99">—</span></div>
+      </div>
+      <div class="measures">
+        <div><span class="k">finished</span><span class="v" id="stat-finished">—</span></div>
+        <div><span class="k">steps</span><span class="v" id="stat-steps">—</span></div>
+        <div><span class="k">preemptions</span><span class="v" id="stat-preemptions">—</span></div>
+      </div>
+      <p class="note" id="config-note">—</p>
+    </section>
+
+  </div>
+
+  <section class="card">
+    <div class="card-head">
+      <h2>In flight</h2>
+      <span class="hint">prompt processed, then tokens generated</span>
+    </div>
+    <div class="slots" id="slots"><p class="empty">Idle — send some traffic.</p></div>
+  </section>
+
+  <footer class="foot">
+    <span>model <strong id="stat-model">—</strong></span>
+    <span>scheduler <strong id="stat-scheduler">—</strong></span>
+    <span><a href="https://github.com/Ankitnehra6/inference-server" target="_blank" rel="noopener">source</a></span>
+  </footer>
+
+</main>
+
+<script src="app.js"></script>
+</body>
+</html>

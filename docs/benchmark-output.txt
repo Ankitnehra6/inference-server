@@ -1,0 +1,59 @@
+==============================================================================
+simulated 7B-class model: decode 12.0 ms base + 0.15 ms/seq, prefill 0.35 ms/token
+virtual clock — results are exact and reproducible from the seed
+
+## Scheduling policy — 8.0 req/s, 400 requests
+
+*Prompts p50 234 / p99 1329 tokens; replies p50 121 / p99 1024 tokens.*
+
+| scheduler | output tok/s | req/s | TTFT p50 | TTFT p99 | ITL p50 | ITL p99 | E2E p99 | mean batch |
+|---|---:|---:|---:|---:|---:|---:|---:|---:|
+| sequential | 78.6 | 0.4 | 485695.1 | 935618.4 | 12.15 | 12.15 | 939122.5 | 1.0 |
+| static | 539.5 | 2.76 | 39420.1 | 81928.5 | 16.05 | 721.9 | 89309.8 | 10.6 |
+| continuous | 981.9 | 5.03 | 4230.2 | 16164.9 | 21.6 | 440.5 | 55972.6 | 40.7 |
+
+**Continuous vs static: 1.8x the throughput, 5x lower p99 TTFT. Static vs sequential: 6.9x — that gap is what batching alone buys.**
+
+## Chunked prefill — 8.0 req/s
+
+*Prefill is one big matrix multiply; decode is one token per sequence. Without chunking, a long prompt takes a whole step and every reply in flight stalls for it.*
+
+| scheduler | output tok/s | req/s | TTFT p50 | TTFT p99 | ITL p50 | ITL p99 | E2E p99 | mean batch |
+|---|---:|---:|---:|---:|---:|---:|---:|---:|
+| chunked prefill | 510.3 | 2.61 | 39374.0 | 88808.3 | 21.6 | 718.1 | 129558.4 | 41.3 |
+| no chunking | 230.8 | 1.18 | 104412.2 | 280539.6 | 13.65 | 659.45 | 286518.3 | 4.5 |
+
+**Chunking is worth 2.2x the throughput and 3.2x lower p99 TTFT (280540 ms to 88808 ms).**
+
+Inter-token latency is close to unchanged (659.45 ms without, 718.1 ms with), which is worth stating because the usual claim for chunked prefill is that it protects ITL. Here it does not need to: this scheduler already schedules decodes before prefills, so a long prompt can never take a step away from a reply in flight. Chunking's value is that a long prompt starts immediately using leftover budget instead of waiting for a step with room for all of it -- which is a throughput and TTFT win, not an ITL one.
+
+## Memory pressure — 8.0 req/s, shrinking KV cache
+
+| cache tokens | output tok/s | TTFT p99 (ms) | preemptions | mean batch |
+|---:|---:|---:|---:|---:|
+| 131,072 | 981.9 | 16164.9 | 0 | 40.7 |
+| 32,768 | 913.9 | 21997.1 | 42 | 40.3 |
+| 16,384 | 685.6 | 52594.7 | 193 | 26.7 |
+| 8,192 | 523.6 | 90217.8 | 240 | 14.5 |
+| 4,096 | 368.2 | 155023.4 | 250 | 7.2 |
+
+Throughput falls off gradually rather than collapsing, and every request still completes with exactly the tokens it asked for -- preemption costs work, never correctness. The recomputation is real, though: a preempted request runs its prompt again from the start, which is why the count is worth reporting next to the latency rather than hidden inside it.
+
+## Throughput and tail latency as load rises
+
+| req/s | scheduler | output tok/s | TTFT p99 (ms) | ITL p99 (ms) | preemptions |
+|---:|---|---:|---:|---:|---:|
+| 2 | sequential | 78.6 | 784147.8 | 12.15 | 0 |
+| 2 | static | 362.0 | 16865.9 | 74.15 | 0 |
+| 2 | continuous | 376.5 | 863.1 | 135.5 | 0 |
+| 4 | sequential | 78.6 | 885128.2 | 12.15 | 0 |
+| 4 | static | 533.6 | 40143.9 | 721.7 | 0 |
+| 4 | continuous | 714.5 | 1455.7 | 290.3 | 0 |
+| 8 | sequential | 78.6 | 935618.4 | 12.15 | 0 |
+| 8 | static | 539.5 | 81928.5 | 721.9 | 0 |
+| 8 | continuous | 981.9 | 16164.9 | 440.5 | 0 |
+| 16 | static | 557.3 | 106401.1 | 722.3 | 0 |
+| 16 | continuous | 987.3 | 40836.2 | 451.7 | 0 |
+| 32 | static | 560.7 | 120101.0 | 722.5 | 0 |
+| 32 | continuous | 987.3 | 53394.5 | 459.75 | 0 |
+

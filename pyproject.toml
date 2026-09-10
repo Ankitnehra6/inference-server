@@ -1,0 +1,50 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "inference-server"
+version = "0.1.0"
+description = "An LLM inference server built around a continuous-batching scheduler"
+readme = "README.md"
+requires-python = ">=3.12"
+license = "MIT"
+license-files = ["LICENSE"]
+authors = [{ name = "Ankit Nehra" }]
+
+# The scheduler -- the part this project is actually about -- depends on nothing but the
+# standard library. numpy is for the model engines and fastapi is for the HTTP layer, and
+# both are kept out of the scheduling logic so it can be tested without either.
+dependencies = [
+    "numpy>=2.0",
+    "fastapi>=0.115",
+    "uvicorn[standard]>=0.34",
+]
+
+[project.optional-dependencies]
+# A real model, for the demo. Optional because it is a 500 MB download and the scheduler
+# benchmarks deliberately do not use it -- see docs/adr/0002.
+gpt2 = ["onnxruntime>=1.20", "transformers>=4.45", "optimum[onnxruntime]>=1.23"]
+dev = ["pytest>=8", "pytest-asyncio>=0.24", "httpx>=0.28"]
+
+[project.scripts]
+inference-server = "inference_server.server:main"
+inference-bench = "inference_server.bench.run:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-data]
+inference_server = ["ui/*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+asyncio_mode = "auto"
+filterwarnings = ["error"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "SIM", "RUF"]
