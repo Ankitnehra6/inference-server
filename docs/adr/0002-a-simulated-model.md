@@ -32,7 +32,8 @@ The cost model encodes the two facts that govern LLM inference:
 Defaults are chosen to resemble a 7B model in fp16: 12 ms base per decode step plus 0.15 ms per
 sequence. One sequence decodes in 12.15 ms, thirty-two in 16.8 ms.
 
-A real model path (`onnxruntime` + GPT-2) exists as an optional extra for the demo.
+No real model path is implemented. `ModelEngine` is two methods wide so one can be added, and
+that is as far as it goes — see the consequences below.
 
 ## Consequences
 
@@ -51,3 +52,10 @@ its own test (`test_batching_is_nearly_free_which_is_the_reason_any_of_this_exis
 
 The virtual clock also makes tests deterministic. A scheduling bug that only appears when two
 requests finish on the same step is effectively unreproducible against the wall clock.
+
+**The cost of this decision, stated plainly.** Nothing here has ever driven a real forward pass.
+The interface is narrow enough that adding one is a contained job, but "contained" is not
+"done", and integration problems — tokenizer handling, batching tensors of ragged length,
+actually indexing a block table inside an attention kernel — are exactly the sort that only
+appear on contact. The scheduling results stand on their own; the claim that this would serve a
+real model unchanged is not one this repository has earned.

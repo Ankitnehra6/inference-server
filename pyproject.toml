@@ -22,9 +22,6 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-# A real model, for the demo. Optional because it is a 500 MB download and the scheduler
-# benchmarks deliberately do not use it -- see docs/adr/0002.
-gpt2 = ["onnxruntime>=1.20", "transformers>=4.45", "optimum[onnxruntime]>=1.23"]
 dev = ["pytest>=8", "pytest-asyncio>=0.24", "httpx>=0.28"]
 
 [project.scripts]

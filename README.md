@@ -189,10 +189,13 @@ tensors precisely so every decision could be checked exactly.
 
 ## What is not built
 
-- **No real attention kernels.** This schedules; it does not compute. `SimulatedEngine` reports
-  modelled step times, and the optional `[gpt2]` extra runs a real model through the same
-  interface. Scheduler numbers come from the simulator and say so — see
-  [ADR 2](docs/adr/0002-a-simulated-model.md).
+- **No real model.** This schedules; it does not compute. `SimulatedEngine` reports modelled
+  step times from an explicit cost model, and every number in this README comes from it. The
+  `ModelEngine` interface is two methods wide precisely so a real engine can be dropped in, and
+  none is — so the plumbing between a scheduler and an actual forward pass is untested here.
+  [ADR 2](docs/adr/0002-a-simulated-model.md) argues that a real model is the wrong instrument
+  for measuring a *scheduler*, which it is; it is not an argument that the integration would be
+  free.
 - **No PagedAttention kernel.** The block *accounting* is real; the attention op that would read
   a block table is not, because it would need CUDA.
 - **No prefix caching.** Two requests sharing a system prompt each prefill it in full. Sharing
