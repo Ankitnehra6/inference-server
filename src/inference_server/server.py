@@ -116,7 +116,7 @@ def create_app(engine: AsyncLLMEngine) -> FastAPI:
     async def asset(asset: str):
         # Only the two files the page needs. A general static handler here would be a path
         # traversal waiting to happen, and this server has no other assets.
-        if asset not in {"app.js", "style.css"}:
+        if asset not in {"app.js", "style.css", "explain.js"}:
             raise HTTPException(status_code=404)
         return FileResponse(UI_DIR / asset)
 
